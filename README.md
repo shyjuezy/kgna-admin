@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+KGNA Admin is a lightweight content-admin app for non-technical content updates.
 
-## Getting Started
+## Prerequisites
 
-First, run the development server:
+- Clerk app and keys
+- Neon Postgres database
+- Node 20+
+
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+cp .env.example .env.local
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+- `KGNA_ADMIN_EMAILS` (comma-separated allow-list)
+- `DATABASE_URL` (Neon Postgres connection string)
+- `PUBLIC_SITE_URL` (optional metadata only)
 
-## Learn More
+## Neon setup
 
-To learn more about Next.js, take a look at the following resources:
+### Add these environment entries in Neon
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Create a new Neon project (or use an existing one).
+2. Copy the pooled connection string from Neon.
+3. Register these entries:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```env
+DATABASE_URL=postgresql://<DB_USER>:<DB_PASS>@<PROJECT_REF>.pooler.neon.tech/<DB_NAME>?sslmode=require
+```
 
-## Deploy on Vercel
+If you prefer direct non-pooled host, replace the hostname with `<PROJECT_REF>.postgres.neon.tech`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Seed the database
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm db:generate
+pnpm db:migrate
+```
+
+### Local `.env.local`
+
+```env
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=<your Clerk publishable key>
+CLERK_SECRET_KEY=<your Clerk secret key>
+KGNA_ADMIN_EMAILS=<allowed admin emails, comma-separated>
+DATABASE_URL=<neon pooled connection string>
+```
+
+### Vercel environment variables
+
+Add the same values under your `kgna-admin` project:
+
+- `NEXT_PUBLIC_APP_URL` (for local dev use `http://localhost:3000`, production value as needed)
+- `PUBLIC_SITE_URL` (set to `https://kgna-website.vercel.app` or the target web app URL)
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+- `KGNA_ADMIN_EMAILS`
+- `DATABASE_URL` (pooled Neon connection)
+
+## API
+
+- `POST /api/admin/pages/[slug]` (save draft)
+- `POST /api/admin/pages/[slug]/publish` (publish)
+- `GET /api/admin/pages`
+- `GET /api/public/pages`
+- `GET /api/public/pages/[slug]`
+
+## Migrations
+
+```bash
+pnpm db:generate
+pnpm db:migrate
+```
