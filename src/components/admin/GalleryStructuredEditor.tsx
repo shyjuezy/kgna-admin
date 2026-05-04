@@ -1,8 +1,31 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { CmsPageContent } from "@/lib/content";
 import { useMarkDirty } from "@/components/admin/EditorFormShell";
+import { CloudinaryUploadButton } from "@/components/admin/CloudinaryUploadButton";
+import {
+  TextField,
+  TextAreaField,
+  SelectField,
+} from "@/components/admin/Fields";
 
 type SectionProps = Record<string, unknown>;
 
@@ -94,10 +117,48 @@ export function GalleryStructuredEditor({
     markDirty();
   }, [items.length, markDirty]);
 
+  const pendingFocusId = useRef<string | null>(null);
+  useEffect(() => {
+    const id = pendingFocusId.current;
+    if (!id) return;
+    pendingFocusId.current = null;
+    const el = document.getElementById(`photo-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+      el.querySelector<HTMLInputElement>('input[name$=".title"]')?.focus();
+    }, 350);
+  }, [items.length]);
+
+  const addPhoto = () => {
+    const item = blankItem();
+    pendingFocusId.current = item.id;
+    setItems((current) => [...current, item]);
+  };
+
   const updateItem = (id: string, patch: Partial<GalleryItem>) =>
     setItems((current) =>
       current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setItems((current) => {
+      const oldIndex = current.findIndex((i) => i.id === active.id);
+      const newIndex = current.findIndex((i) => i.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return current;
+      return arrayMove(current, oldIndex, newIndex);
+    });
+    markDirty();
+  };
 
   return (
     <div className="space-y-6">
@@ -145,7 +206,7 @@ export function GalleryStructuredEditor({
         actions={
           <button
             type="button"
-            onClick={() => setItems((current) => [...current, blankItem()])}
+            onClick={addPhoto}
             className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
             <PlusIcon /> Add photo
@@ -159,17 +220,33 @@ export function GalleryStructuredEditor({
               hint="Click Add photo to upload your first image."
             />
           ) : null}
-          {items.map((item, index) => (
-            <PhotoRow
-              key={item.id}
-              item={item}
-              index={index}
-              onChange={(patch) => updateItem(item.id, patch)}
-              onRemove={() =>
-                setItems((current) => current.filter((i) => i.id !== item.id))
-              }
-            />
-          ))}
+          <DndContext
+            id="gallery-photos-dnd"
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={items.map((i) => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {items.map((item, index) => (
+                  <PhotoRow
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    onChange={(patch) => updateItem(item.id, patch)}
+                    onRemove={() =>
+                      setItems((current) =>
+                        current.filter((i) => i.id !== item.id),
+                      )
+                    }
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       </Fieldset>
     </div>
@@ -191,8 +268,32 @@ function PhotoRow({
   const headingTitle = item.title?.trim() || `Photo ${index + 1}`;
   const isFeatured = item.featured === "yes";
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 10 : "auto",
+  } as const;
+
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+    <div
+      ref={setNodeRef}
+      style={style}
+      id={`photo-${item.id}`}
+      className={
+        "rounded-lg border bg-slate-50/60 p-4 " +
+        (isDragging ? "border-slate-400 shadow-lg" : "border-slate-200")
+      }
+    >
       <input type="hidden" name={fieldName("id")} value={item.id} />
       <input
         type="hidden"
@@ -202,6 +303,16 @@ function PhotoRow({
 
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            ref={setActivatorNodeRef}
+            {...attributes}
+            {...listeners}
+            aria-label={`Reorder ${headingTitle}`}
+            className="inline-flex h-6 w-6 cursor-grab touch-none items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing"
+          >
+            <GripIcon />
+          </button>
           <p className="truncate text-sm font-semibold text-slate-900">
             {headingTitle}
           </p>
@@ -259,14 +370,23 @@ function PhotoRow({
             rows={2}
             className="md:col-span-2"
           />
-          <TextField
-            label="Image URL"
-            name={fieldName("image")}
-            value={item.image}
-            onChange={(value) => onChange({ image: value })}
-            placeholder="https://…"
-            className="md:col-span-2"
-          />
+          <div className="md:col-span-2">
+            <div className="flex items-end gap-2">
+              <TextField
+                label="Image URL"
+                name={fieldName("image")}
+                value={item.image}
+                onChange={(value) => onChange({ image: value })}
+                placeholder="https://…"
+                className="flex-1"
+              />
+              <CloudinaryUploadButton
+                folder="kgna/gallery"
+                onUploaded={(url) => onChange({ image: url })}
+                className="mb-px h-[38px]"
+              />
+            </div>
+          </div>
           <TextField
             label="Date"
             name={fieldName("date")}
@@ -340,93 +460,6 @@ function EmptyState({ label, hint }: { label: string; hint: string }) {
   );
 }
 
-type ControlledTextProps = {
-  label: string;
-  name: string;
-  className?: string;
-  placeholder?: string;
-} & (
-  | { value: string; onChange: (value: string) => void; defaultValue?: never }
-  | { defaultValue?: string; value?: never; onChange?: never }
-);
-
-function TextField(props: ControlledTextProps) {
-  const { label, name, className, placeholder } = props;
-  return (
-    <label
-      className={`flex flex-col gap-1 text-sm font-medium text-slate-700 ${className ?? ""}`}
-    >
-      {label}
-      <input
-        name={name}
-        placeholder={placeholder}
-        {...("value" in props && props.value !== undefined
-          ? {
-              value: props.value,
-              onChange: (e) => props.onChange?.(e.target.value),
-            }
-          : { defaultValue: props.defaultValue })}
-        className="rounded-md border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-      />
-    </label>
-  );
-}
-
-function TextAreaField(props: ControlledTextProps & { rows?: number }) {
-  const { label, name, className, placeholder, rows = 3 } = props;
-  return (
-    <label
-      className={`flex flex-col gap-1 text-sm font-medium text-slate-700 ${className ?? ""}`}
-    >
-      {label}
-      <textarea
-        name={name}
-        placeholder={placeholder}
-        rows={rows}
-        {...("value" in props && props.value !== undefined
-          ? {
-              value: props.value,
-              onChange: (e) => props.onChange?.(e.target.value),
-            }
-          : { defaultValue: props.defaultValue })}
-        className="rounded-md border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-      />
-    </label>
-  );
-}
-
-function SelectField({
-  label,
-  name,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  name: string;
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
-      {label}
-      <select
-        name={name}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-md border border-slate-300 bg-white px-3 py-2 font-normal capitalize text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-      >
-        {options.map((option) => (
-          <option key={option} value={option} className="capitalize">
-            {option}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 function PlusIcon() {
   return (
     <svg
@@ -459,6 +492,24 @@ function TrashIcon() {
       <path d="M3 4h10" />
       <path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" />
       <path d="M4 4l1 9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l1-9" />
+    </svg>
+  );
+}
+
+function GripIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 16 16"
+      className="h-4 w-4"
+      fill="currentColor"
+    >
+      <circle cx="6" cy="3.5" r="1" />
+      <circle cx="10" cy="3.5" r="1" />
+      <circle cx="6" cy="8" r="1" />
+      <circle cx="10" cy="8" r="1" />
+      <circle cx="6" cy="12.5" r="1" />
+      <circle cx="10" cy="12.5" r="1" />
     </svg>
   );
 }

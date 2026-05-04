@@ -214,6 +214,63 @@ function buildEventsContent(formData: FormData): CmsPageContent {
   };
 }
 
+function buildContactContent(formData: FormData): CmsPageContent {
+  const links = collectIndexedItems(formData, "social.links", [
+    "label",
+    "href",
+  ]);
+  const faqItems = collectIndexedItems(formData, "faq.items", [
+    "question",
+    "answer",
+  ]);
+
+  return {
+    title: formValue(formData, "title") || "Contact",
+    sections: [
+      {
+        type: "hero",
+        props: {
+          heading: formValue(formData, "hero.heading"),
+          body: formValue(formData, "hero.body"),
+        },
+      },
+      {
+        type: "contactInfo",
+        props: {
+          heading: formValue(formData, "contactInfo.heading"),
+          email: formValue(formData, "contactInfo.email"),
+          addressLine1: formValue(formData, "contactInfo.addressLine1"),
+          addressLine2: formValue(formData, "contactInfo.addressLine2"),
+        },
+      },
+      {
+        type: "form",
+        props: {
+          heading: formValue(formData, "form.heading"),
+          body: formValue(formData, "form.body"),
+        },
+      },
+      {
+        type: "social",
+        props: {
+          heading: formValue(formData, "social.heading") || "Follow Us",
+          body: formValue(formData, "social.body"),
+          links,
+        },
+      },
+      {
+        type: "faq",
+        props: {
+          heading:
+            formValue(formData, "faq.heading") || "Frequently Asked Questions",
+          body: formValue(formData, "faq.body"),
+          items: faqItems,
+        },
+      },
+    ],
+  };
+}
+
 function buildGalleryContent(formData: FormData): CmsPageContent {
   const items = collectIndexedItems(formData, "gallery.items", [
     "id",
@@ -345,6 +402,19 @@ export async function POST(
 
   if (editorType === "events-structured") {
     const content = buildEventsContent(formData);
+    await upsertDraftPage(
+      slug,
+      content.title,
+      cmsPageContentSchema.parse(content),
+    );
+    return NextResponse.redirect(
+      new URL(`/admin/content/${slug}?saved=1`, request.url),
+      { status: 303 },
+    );
+  }
+
+  if (editorType === "contact-structured") {
+    const content = buildContactContent(formData);
     await upsertDraftPage(
       slug,
       content.title,
