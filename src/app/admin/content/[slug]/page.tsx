@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { DEFAULT_ABOUT_CONTENT, type CmsPageContent } from "@/lib/content";
 import { getEditablePage } from "@/lib/repository";
+import { EventsStructuredEditor } from "@/components/admin/EventsStructuredEditor";
+import { GalleryStructuredEditor } from "@/components/admin/GalleryStructuredEditor";
+import { EditorFormShell } from "@/components/admin/EditorFormShell";
 
 type SectionProps = Record<string, unknown>;
 
 function getSection(content: CmsPageContent, type: string): SectionProps {
-  return (content.sections.find((section) => section.type === type)?.props ?? {}) as SectionProps;
+  return (content.sections.find((section) => section.type === type)?.props ??
+    {}) as SectionProps;
 }
 
 function asString(value: unknown, fallback = "") {
@@ -80,28 +84,47 @@ function GenericStructuredEditor({ content }: { content: CmsPageContent }) {
     <div className="space-y-6">
       <input type="hidden" name="editorType" value="generic-structured" />
       {content.sections.map((section, sectionIndex) => (
-        <fieldset key={`${section.type}-${sectionIndex}`} className="rounded border border-slate-200 p-4">
+        <fieldset
+          key={`${section.type}-${sectionIndex}`}
+          className="rounded border border-slate-200 p-4"
+        >
           <legend className="px-1 text-sm font-semibold text-slate-900">
             {fieldLabel(section.type)}
           </legend>
-          <input name={`section.${sectionIndex}.type`} type="hidden" value={section.type} />
+          <input
+            name={`section.${sectionIndex}.type`}
+            type="hidden"
+            value={section.type}
+          />
           <div className="mt-3 grid gap-4">
             {Object.entries(section.props).map(([key, value]) => {
               if (Array.isArray(value)) {
                 return (
                   <div key={key} className="space-y-3">
-                    <p className="text-sm font-semibold text-slate-700">{fieldLabel(key)}</p>
+                    <p className="text-sm font-semibold text-slate-700">
+                      {fieldLabel(key)}
+                    </p>
                     {value.map((item, itemIndex) => (
-                      <div key={`${key}-${itemIndex}`} className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-2">
-                        {Object.entries(item as SectionProps).map(([itemKey, itemValue]) => (
-                          <TextAreaField
-                            key={itemKey}
-                            label={fieldLabel(itemKey)}
-                            name={`section.${sectionIndex}.array.${key}.${itemIndex}.${itemKey}`}
-                            value={asString(itemValue)}
-                            rows={itemKey.toLowerCase().includes("description") || itemKey.toLowerCase().includes("body") ? 3 : 1}
-                          />
-                        ))}
+                      <div
+                        key={`${key}-${itemIndex}`}
+                        className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-2"
+                      >
+                        {Object.entries(item as SectionProps).map(
+                          ([itemKey, itemValue]) => (
+                            <TextAreaField
+                              key={itemKey}
+                              label={fieldLabel(itemKey)}
+                              name={`section.${sectionIndex}.array.${key}.${itemIndex}.${itemKey}`}
+                              value={asString(itemValue)}
+                              rows={
+                                itemKey.toLowerCase().includes("description") ||
+                                itemKey.toLowerCase().includes("body")
+                                  ? 3
+                                  : 1
+                              }
+                            />
+                          ),
+                        )}
                       </div>
                     ))}
                   </div>
@@ -154,46 +177,114 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
       <input type="hidden" name="editorType" value="about-structured" />
 
       <fieldset className="rounded border border-slate-200 p-4">
-        <legend className="px-1 text-sm font-semibold text-slate-900">Hero</legend>
+        <legend className="px-1 text-sm font-semibold text-slate-900">
+          Hero
+        </legend>
         <div className="mt-3 grid gap-4">
-          <TextField label="Heading" name="hero.heading" value={asString(hero.heading)} />
-          <TextAreaField label="Body" name="hero.body" value={asString(hero.body)} />
+          <TextField
+            label="Heading"
+            name="hero.heading"
+            value={asString(hero.heading)}
+          />
+          <TextAreaField
+            label="Body"
+            name="hero.body"
+            value={asString(hero.body)}
+          />
         </div>
       </fieldset>
 
       <fieldset className="rounded border border-slate-200 p-4">
-        <legend className="px-1 text-sm font-semibold text-slate-900">Mission and Vision</legend>
+        <legend className="px-1 text-sm font-semibold text-slate-900">
+          Mission and Vision
+        </legend>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
-          <TextField label="Mission title" name="mission.title" value={asString(missionVision.missionTitle)} />
-          <TextField label="Vision title" name="vision.title" value={asString(missionVision.visionTitle)} />
-          <TextAreaField label="Mission body" name="mission.body" value={asString(missionVision.missionBody)} rows={5} />
-          <TextAreaField label="Vision body" name="vision.body" value={asString(missionVision.visionBody)} rows={5} />
+          <TextField
+            label="Mission title"
+            name="mission.title"
+            value={asString(missionVision.missionTitle)}
+          />
+          <TextField
+            label="Vision title"
+            name="vision.title"
+            value={asString(missionVision.visionTitle)}
+          />
+          <TextAreaField
+            label="Mission body"
+            name="mission.body"
+            value={asString(missionVision.missionBody)}
+            rows={5}
+          />
+          <TextAreaField
+            label="Vision body"
+            name="vision.body"
+            value={asString(missionVision.visionBody)}
+            rows={5}
+          />
         </div>
       </fieldset>
 
       <fieldset className="rounded border border-slate-200 p-4">
-        <legend className="px-1 text-sm font-semibold text-slate-900">Core Values</legend>
+        <legend className="px-1 text-sm font-semibold text-slate-900">
+          Core Values
+        </legend>
         <div className="mt-3 space-y-4">
-          <TextField label="Section heading" name="values.heading" value={asString(values.heading)} />
+          <TextField
+            label="Section heading"
+            name="values.heading"
+            value={asString(values.heading)}
+          />
           {valueItems.map((item, index) => (
-            <div key={index} className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-2">
-              <TextField label={`Value ${index + 1} title`} name={`values.${index}.title`} value={asString(item.title)} />
-              <TextAreaField label="Description" name={`values.${index}.description`} value={asString(item.description)} />
+            <div
+              key={index}
+              className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-2"
+            >
+              <TextField
+                label={`Value ${index + 1} title`}
+                name={`values.${index}.title`}
+                value={asString(item.title)}
+              />
+              <TextAreaField
+                label="Description"
+                name={`values.${index}.description`}
+                value={asString(item.description)}
+              />
             </div>
           ))}
         </div>
       </fieldset>
 
       <fieldset className="rounded border border-slate-200 p-4">
-        <legend className="px-1 text-sm font-semibold text-slate-900">Journey Timeline</legend>
+        <legend className="px-1 text-sm font-semibold text-slate-900">
+          Journey Timeline
+        </legend>
         <div className="mt-3 space-y-4">
-          <TextField label="Section heading" name="journey.heading" value={asString(journey.heading)} />
+          <TextField
+            label="Section heading"
+            name="journey.heading"
+            value={asString(journey.heading)}
+          />
           {journeyItems.map((item, index) => (
-            <div key={index} className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-[120px_1fr]">
-              <TextField label="Year" name={`journey.${index}.year`} value={asString(item.year)} />
+            <div
+              key={index}
+              className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-[120px_1fr]"
+            >
+              <TextField
+                label="Year"
+                name={`journey.${index}.year`}
+                value={asString(item.year)}
+              />
               <div className="grid gap-3">
-                <TextField label="Title" name={`journey.${index}.title`} value={asString(item.title)} />
-                <TextAreaField label="Description" name={`journey.${index}.description`} value={asString(item.description)} />
+                <TextField
+                  label="Title"
+                  name={`journey.${index}.title`}
+                  value={asString(item.title)}
+                />
+                <TextAreaField
+                  label="Description"
+                  name={`journey.${index}.description`}
+                  value={asString(item.description)}
+                />
               </div>
             </div>
           ))}
@@ -201,30 +292,85 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
       </fieldset>
 
       <fieldset className="rounded border border-slate-200 p-4">
-        <legend className="px-1 text-sm font-semibold text-slate-900">Leadership</legend>
+        <legend className="px-1 text-sm font-semibold text-slate-900">
+          Leadership
+        </legend>
         <div className="mt-3 space-y-4">
-          <TextField label="Section heading" name="leadership.heading" value={asString(leadership.heading)} />
-          <TextAreaField label="Section body" name="leadership.body" value={asString(leadership.body)} />
+          <TextField
+            label="Section heading"
+            name="leadership.heading"
+            value={asString(leadership.heading)}
+          />
+          <TextAreaField
+            label="Section body"
+            name="leadership.body"
+            value={asString(leadership.body)}
+          />
           {members.map((member, index) => (
-            <div key={index} className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-2">
-              <TextField label={`Member ${index + 1} name`} name={`members.${index}.name`} value={asString(member.name)} />
-              <TextField label="Role" name={`members.${index}.role`} value={asString(member.role)} />
-              <TextAreaField label="Bio" name={`members.${index}.bio`} value={asString(member.bio)} />
-              <TextField label="Image URL" name={`members.${index}.imageUrl`} value={asString(member.imageUrl)} />
+            <div
+              key={index}
+              className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-2"
+            >
+              <TextField
+                label={`Member ${index + 1} name`}
+                name={`members.${index}.name`}
+                value={asString(member.name)}
+              />
+              <TextField
+                label="Role"
+                name={`members.${index}.role`}
+                value={asString(member.role)}
+              />
+              <TextAreaField
+                label="Bio"
+                name={`members.${index}.bio`}
+                value={asString(member.bio)}
+              />
+              <TextField
+                label="Image URL"
+                name={`members.${index}.imageUrl`}
+                value={asString(member.imageUrl)}
+              />
             </div>
           ))}
         </div>
       </fieldset>
 
       <fieldset className="rounded border border-slate-200 p-4">
-        <legend className="px-1 text-sm font-semibold text-slate-900">Get Involved</legend>
+        <legend className="px-1 text-sm font-semibold text-slate-900">
+          Get Involved
+        </legend>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
-          <TextField label="Heading" name="cta.heading" value={asString(cta.heading)} />
-          <TextAreaField label="Body" name="cta.body" value={asString(cta.body)} />
-          <TextField label="Primary button label" name="cta.primaryLabel" value={asString(cta.primaryLabel)} />
-          <TextField label="Primary button link" name="cta.primaryHref" value={asString(cta.primaryHref)} />
-          <TextField label="Secondary button label" name="cta.secondaryLabel" value={asString(cta.secondaryLabel)} />
-          <TextField label="Secondary button link" name="cta.secondaryHref" value={asString(cta.secondaryHref)} />
+          <TextField
+            label="Heading"
+            name="cta.heading"
+            value={asString(cta.heading)}
+          />
+          <TextAreaField
+            label="Body"
+            name="cta.body"
+            value={asString(cta.body)}
+          />
+          <TextField
+            label="Primary button label"
+            name="cta.primaryLabel"
+            value={asString(cta.primaryLabel)}
+          />
+          <TextField
+            label="Primary button link"
+            name="cta.primaryHref"
+            value={asString(cta.primaryHref)}
+          />
+          <TextField
+            label="Secondary button label"
+            name="cta.secondaryLabel"
+            value={asString(cta.secondaryLabel)}
+          />
+          <TextField
+            label="Secondary button link"
+            name="cta.secondaryHref"
+            value={asString(cta.secondaryHref)}
+          />
         </div>
       </fieldset>
     </div>
@@ -246,7 +392,9 @@ export default async function EditPage({
   } catch {
     return (
       <main className="rounded-lg border border-amber-200 bg-amber-50 p-6">
-        <h1 className="text-lg font-semibold text-amber-800">Database not configured</h1>
+        <h1 className="text-lg font-semibold text-amber-800">
+          Database not configured
+        </h1>
         <p className="mt-2 text-sm text-amber-900">
           Add DATABASE_URL in environment variables and run migrations.
         </p>
@@ -258,7 +406,10 @@ export default async function EditPage({
     return (
       <main className="rounded-lg border border-slate-200 bg-white p-6">
         <h1 className="text-lg font-semibold">Page not found</h1>
-        <Link className="mt-4 inline-block text-sm text-slate-700 underline" href="/admin">
+        <Link
+          className="mt-4 inline-block text-sm text-slate-700 underline"
+          href="/admin"
+        >
           Back to dashboard
         </Link>
       </main>
@@ -272,80 +423,148 @@ export default async function EditPage({
         ? "Draft published."
         : "";
 
+  const isPublished = page.status === "published";
+  const hasUnpublishedChanges =
+    !page.publishedContent ||
+    JSON.stringify(page.draftContent) !== JSON.stringify(page.publishedContent);
+
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold">{page.title}</h1>
-          <p className="text-sm text-slate-600">
-            Slug: <span className="font-mono">{page.slug}</span>
-          </p>
-        </div>
-        <Link className="text-sm text-slate-700 underline" href="/admin">
-          Back
-        </Link>
-      </div>
-
-      {success && <p className="mt-4 text-sm text-green-700">{success}</p>}
-
-      <form
-        action={`/api/admin/pages/${page.slug}`}
-        method="post"
-        className="mt-5 space-y-4"
-      >
-        <input
-          type="hidden"
-          name="slug"
-          value={page.slug}
-        />
-        <div className="flex flex-col gap-1">
-          <label htmlFor="title" className="text-sm font-medium text-slate-700">
-            Title
-          </label>
-          <input
-            id="title"
-            name="title"
-            defaultValue={page.draftContent.title}
-            className="rounded border border-slate-300 px-3 py-2"
-          />
-        </div>
-        {page.slug === "about" ? (
-          <AboutStructuredEditor content={page.draftContent} />
-        ) : page.draftContent.sections.length > 0 ? (
-          <GenericStructuredEditor content={page.draftContent} />
-        ) : (
-          <div className="flex flex-col gap-1">
-            <label htmlFor="content" className="text-sm font-medium text-slate-700">
-              Draft content JSON
-            </label>
-            <textarea
-              id="content"
-              name="content"
-              defaultValue={JSON.stringify(page.draftContent, null, 2)}
-              rows={20}
-              className="font-mono rounded border border-slate-300 bg-slate-50 px-3 py-2"
-            />
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 16 16"
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10 3 5 8l5 5" />
+            </svg>
+            Back to pages
+          </Link>
+          <h1 className="mt-1 truncate text-xl font-semibold tracking-tight text-slate-900">
+            {page.title}
+          </h1>
+          <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+            <span className="font-mono">/{page.slug}</span>
+            <span className="text-slate-300">·</span>
+            <span
+              className={
+                "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium " +
+                (isPublished
+                  ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border border-slate-200 bg-slate-50 text-slate-600")
+              }
+            >
+              <span
+                className={
+                  "h-1.5 w-1.5 rounded-full " +
+                  (isPublished ? "bg-emerald-500" : "bg-slate-400")
+                }
+              />
+              {isPublished ? "Published" : "Draft"}
+            </span>
           </div>
-        )}
-        <div className="flex flex-wrap gap-3">
-          <button className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white">
-            Save Draft
-          </button>
         </div>
-      </form>
-
-      <div className="mt-5 flex flex-wrap gap-3">
-        <form action={`/api/admin/pages/${page.slug}/publish`} method="post">
-          <button className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white">
-            Publish
+        <form
+          action={`/api/admin/pages/${page.slug}/publish`}
+          method="post"
+          className="shrink-0"
+        >
+          <button
+            type="submit"
+            disabled={!hasUnpublishedChanges}
+            title={
+              hasUnpublishedChanges
+                ? "Publish saved changes to the live site"
+                : "No changes to publish"
+            }
+            className={
+              "inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition " +
+              (hasUnpublishedChanges
+                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                : "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400")
+            }
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 16 16"
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 8l3 3 7-7" />
+            </svg>
+            {hasUnpublishedChanges
+              ? isPublished
+                ? "Publish changes"
+                : "Publish"
+              : "Up to date"}
           </button>
         </form>
-        <a
-          className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700"
-          href={`/api/public/pages/${page.slug}`}
-        >
-          View Public JSON
-        </a>
+      </div>
+
+      {success && (
+        <p className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+          <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          {success}
+        </p>
+      )}
+
+      <div className="mt-6">
+        <EditorFormShell action={`/api/admin/pages/${page.slug}`}>
+          <input type="hidden" name="slug" value={page.slug} />
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="title"
+              className="text-sm font-medium text-slate-700"
+            >
+              Title
+            </label>
+            <input
+              id="title"
+              name="title"
+              defaultValue={page.draftContent.title}
+              className="rounded-md border border-slate-300 px-3 py-2"
+            />
+          </div>
+          {page.slug === "about" ? (
+            <AboutStructuredEditor content={page.draftContent} />
+          ) : page.slug === "events" ? (
+            <EventsStructuredEditor content={page.draftContent} />
+          ) : page.slug === "gallery" ? (
+            <GalleryStructuredEditor content={page.draftContent} />
+          ) : page.draftContent.sections.length > 0 ? (
+            <GenericStructuredEditor content={page.draftContent} />
+          ) : (
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="content"
+                className="text-sm font-medium text-slate-700"
+              >
+                Draft content JSON
+              </label>
+              <textarea
+                id="content"
+                name="content"
+                defaultValue={JSON.stringify(page.draftContent, null, 2)}
+                rows={20}
+                className="font-mono rounded-md border border-slate-300 bg-slate-50 px-3 py-2"
+              />
+            </div>
+          )}
+        </EditorFormShell>
       </div>
     </section>
   );

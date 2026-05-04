@@ -11,8 +11,16 @@ export async function GET(
 ) {
   const auth = await getAdminAuthState();
   if (auth.status !== "ok") {
-    const status = auth.status === "not_configured" ? 503 : auth.status === "not_authorized" ? 403 : 401;
-    return NextResponse.json({ error: "Unauthorized to access this page." }, { status });
+    const status =
+      auth.status === "not_configured"
+        ? 503
+        : auth.status === "not_authorized"
+          ? 403
+          : 401;
+    return NextResponse.json(
+      { error: "Unauthorized to access this page." },
+      { status },
+    );
   }
 
   const { slug } = await context.params;
@@ -36,7 +44,10 @@ function formItems(
 ) {
   return Array.from({ length }, (_, index) =>
     Object.fromEntries(
-      fields.map((field) => [field, formValue(formData, `${prefix}.${index}.${field}`)]),
+      fields.map((field) => [
+        field,
+        formValue(formData, `${prefix}.${index}.${field}`),
+      ]),
     ),
   ).filter((item) => Object.values(item).some(Boolean));
 }
@@ -72,7 +83,11 @@ function buildAboutContent(formData: FormData): CmsPageContent {
         type: "journey",
         props: {
           heading: formValue(formData, "journey.heading"),
-          items: formItems(formData, "journey", 7, ["year", "title", "description"]),
+          items: formItems(formData, "journey", 7, [
+            "year",
+            "title",
+            "description",
+          ]),
         },
       },
       {
@@ -80,7 +95,12 @@ function buildAboutContent(formData: FormData): CmsPageContent {
         props: {
           heading: formValue(formData, "leadership.heading"),
           body: formValue(formData, "leadership.body"),
-          members: formItems(formData, "members", 6, ["name", "role", "bio", "imageUrl"]),
+          members: formItems(formData, "members", 6, [
+            "name",
+            "role",
+            "bio",
+            "imageUrl",
+          ]),
         },
       },
       {
@@ -92,6 +112,139 @@ function buildAboutContent(formData: FormData): CmsPageContent {
           primaryHref: formValue(formData, "cta.primaryHref"),
           secondaryLabel: formValue(formData, "cta.secondaryLabel"),
           secondaryHref: formValue(formData, "cta.secondaryHref"),
+        },
+      },
+    ],
+  };
+}
+
+function collectIndexedItems(
+  formData: FormData,
+  prefix: string,
+  fields: string[],
+): Record<string, string>[] {
+  const dotPrefix = `${prefix}.`;
+  const buckets = new Map<number, Record<string, string>>();
+
+  for (const [key, value] of formData.entries()) {
+    if (typeof value !== "string" || !key.startsWith(dotPrefix)) {
+      continue;
+    }
+    const rest = key.slice(dotPrefix.length);
+    const dot = rest.indexOf(".");
+    if (dot === -1) continue;
+    const indexStr = rest.slice(0, dot);
+    const field = rest.slice(dot + 1);
+    const index = Number(indexStr);
+    if (Number.isNaN(index) || !fields.includes(field)) continue;
+
+    const current = buckets.get(index) ?? {};
+    current[field] = value.trim();
+    buckets.set(index, current);
+  }
+
+  return [...buckets.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([, item]) => {
+      const filled: Record<string, string> = {};
+      for (const field of fields) {
+        filled[field] = item[field] ?? "";
+      }
+      return filled;
+    })
+    .filter((item) =>
+      Object.entries(item).some(
+        ([field, value]) => field !== "id" && value.length > 0,
+      ),
+    );
+}
+
+function buildEventsContent(formData: FormData): CmsPageContent {
+  const eventFields = [
+    "id",
+    "title",
+    "description",
+    "date",
+    "time",
+    "location",
+    "category",
+    "imageUrl",
+    "registrationUrl",
+  ];
+  const upcoming = collectIndexedItems(
+    formData,
+    "events.upcoming",
+    eventFields,
+  );
+  const past = collectIndexedItems(formData, "events.past", eventFields).map(
+    ({ registrationUrl: _registrationUrl, ...rest }) => rest,
+  );
+
+  return {
+    title: formValue(formData, "title") || "Events",
+    sections: [
+      {
+        type: "hero",
+        props: {
+          heading: formValue(formData, "hero.heading"),
+          body: formValue(formData, "hero.body"),
+        },
+      },
+      {
+        type: "events",
+        props: {
+          upcomingHeading:
+            formValue(formData, "events.upcomingHeading") || "Upcoming Events",
+          pastHeading:
+            formValue(formData, "events.pastHeading") || "Past Events",
+          upcoming,
+          past,
+        },
+      },
+      {
+        type: "newsletter",
+        props: {
+          heading: formValue(formData, "newsletter.heading"),
+          body: formValue(formData, "newsletter.body"),
+          buttonLabel: formValue(formData, "newsletter.buttonLabel"),
+          buttonHref: formValue(formData, "newsletter.buttonHref"),
+        },
+      },
+    ],
+  };
+}
+
+function buildGalleryContent(formData: FormData): CmsPageContent {
+  const items = collectIndexedItems(formData, "gallery.items", [
+    "id",
+    "title",
+    "description",
+    "image",
+    "category",
+    "date",
+    "location",
+    "featured",
+  ]);
+
+  return {
+    title: formValue(formData, "title") || "Gallery",
+    sections: [
+      {
+        type: "hero",
+        props: {
+          heading: formValue(formData, "hero.heading"),
+          body: formValue(formData, "hero.body"),
+        },
+      },
+      {
+        type: "gallery",
+        props: {
+          featuredHeading:
+            formValue(formData, "gallery.featuredHeading") || "Featured Photos",
+          ctaHeading:
+            formValue(formData, "gallery.ctaHeading") || "Share Your Memories",
+          ctaBody: formValue(formData, "gallery.ctaBody"),
+          items,
         },
       },
     ],
@@ -140,7 +293,9 @@ function buildGenericContent(formData: FormData): CmsPageContent {
     }
 
     for (const [arrayName, items] of arrays.entries()) {
-      props[arrayName] = items.filter((item) => Object.values(item).some(Boolean));
+      props[arrayName] = items.filter((item) =>
+        Object.values(item).some(Boolean),
+      );
     }
 
     sections.push({ type, props });
@@ -152,11 +307,22 @@ function buildGenericContent(formData: FormData): CmsPageContent {
   };
 }
 
-export async function POST(request: NextRequest, context: { params: Promise<{ slug: string }> }) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ slug: string }> },
+) {
   const auth = await getAdminAuthState();
   if (auth.status !== "ok") {
-    const status = auth.status === "not_configured" ? 503 : auth.status === "not_authorized" ? 403 : 401;
-    return NextResponse.json({ error: "Unauthorized to access this page." }, { status });
+    const status =
+      auth.status === "not_configured"
+        ? 503
+        : auth.status === "not_authorized"
+          ? 403
+          : 401;
+    return NextResponse.json(
+      { error: "Unauthorized to access this page." },
+      { status },
+    );
   }
 
   const { slug } = await context.params;
@@ -166,14 +332,54 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
 
   if (editorType === "about-structured") {
     const content = buildAboutContent(formData);
-    await upsertDraftPage(slug, content.title, cmsPageContentSchema.parse(content));
-    return NextResponse.redirect(new URL(`/admin/content/${slug}?saved=1`, request.url), { status: 303 });
+    await upsertDraftPage(
+      slug,
+      content.title,
+      cmsPageContentSchema.parse(content),
+    );
+    return NextResponse.redirect(
+      new URL(`/admin/content/${slug}?saved=1`, request.url),
+      { status: 303 },
+    );
+  }
+
+  if (editorType === "events-structured") {
+    const content = buildEventsContent(formData);
+    await upsertDraftPage(
+      slug,
+      content.title,
+      cmsPageContentSchema.parse(content),
+    );
+    return NextResponse.redirect(
+      new URL(`/admin/content/${slug}?saved=1`, request.url),
+      { status: 303 },
+    );
+  }
+
+  if (editorType === "gallery-structured") {
+    const content = buildGalleryContent(formData);
+    await upsertDraftPage(
+      slug,
+      content.title,
+      cmsPageContentSchema.parse(content),
+    );
+    return NextResponse.redirect(
+      new URL(`/admin/content/${slug}?saved=1`, request.url),
+      { status: 303 },
+    );
   }
 
   if (editorType === "generic-structured") {
     const content = buildGenericContent(formData);
-    await upsertDraftPage(slug, content.title, cmsPageContentSchema.parse(content));
-    return NextResponse.redirect(new URL(`/admin/content/${slug}?saved=1`, request.url), { status: 303 });
+    await upsertDraftPage(
+      slug,
+      content.title,
+      cmsPageContentSchema.parse(content),
+    );
+    return NextResponse.redirect(
+      new URL(`/admin/content/${slug}?saved=1`, request.url),
+      { status: 303 },
+    );
   }
 
   const contentRaw = (formData.get("content") as string) ?? "{}";
@@ -182,15 +388,22 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
   try {
     parsed = JSON.parse(contentRaw);
   } catch {
-    return NextResponse.json({ error: "content must be valid JSON." }, { status: 400 });
+    return NextResponse.json(
+      { error: "content must be valid JSON." },
+      { status: 400 },
+    );
   }
 
-  const parsedTitle = typeof title === "string" && title.length > 0 ? title : "";
+  const parsedTitle =
+    typeof title === "string" && title.length > 0 ? title : "";
   const normalized = {
     ...cmsPageContentSchema.parse(parsed),
     ...(parsedTitle ? { title: parsedTitle } : {}),
   };
 
   await upsertDraftPage(slug, normalized.title, normalized);
-  return NextResponse.redirect(new URL(`/admin/content/${slug}?saved=1`, request.url), { status: 303 });
+  return NextResponse.redirect(
+    new URL(`/admin/content/${slug}?saved=1`, request.url),
+    { status: 303 },
+  );
 }

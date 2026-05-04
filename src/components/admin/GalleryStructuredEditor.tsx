@@ -1,0 +1,477 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import type { CmsPageContent } from "@/lib/content";
+import { useMarkDirty } from "@/components/admin/EditorFormShell";
+
+type SectionProps = Record<string, unknown>;
+
+type GalleryItem = {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  category: string;
+  date: string;
+  location: string;
+  featured: string;
+};
+
+const CATEGORY_OPTIONS = [
+  "events",
+  "culture",
+  "people",
+  "nature",
+  "food",
+  "other",
+];
+
+function asString(value: unknown, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asRecordArray(value: unknown): SectionProps[] {
+  return Array.isArray(value) ? (value as SectionProps[]) : [];
+}
+
+function getSection(content: CmsPageContent, type: string): SectionProps {
+  return (content.sections.find((section) => section.type === type)?.props ??
+    {}) as SectionProps;
+}
+
+function cryptoId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function toGalleryItem(raw: SectionProps): GalleryItem {
+  return {
+    id: asString(raw.id) || cryptoId(),
+    title: asString(raw.title),
+    description: asString(raw.description),
+    image: asString(raw.image),
+    category: asString(raw.category) || "events",
+    date: asString(raw.date),
+    location: asString(raw.location),
+    featured: asString(raw.featured),
+  };
+}
+
+function blankItem(): GalleryItem {
+  return {
+    id: cryptoId(),
+    title: "",
+    description: "",
+    image: "",
+    category: "events",
+    date: "",
+    location: "",
+    featured: "",
+  };
+}
+
+export function GalleryStructuredEditor({
+  content,
+}: {
+  content: CmsPageContent;
+}) {
+  const hero = getSection(content, "hero");
+  const gallery = getSection(content, "gallery");
+
+  const [items, setItems] = useState<GalleryItem[]>(() =>
+    asRecordArray(gallery.items).map(toGalleryItem),
+  );
+
+  const markDirty = useMarkDirty();
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (!initialized.current) {
+      initialized.current = true;
+      return;
+    }
+    markDirty();
+  }, [items.length, markDirty]);
+
+  const updateItem = (id: string, patch: Partial<GalleryItem>) =>
+    setItems((current) =>
+      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+
+  return (
+    <div className="space-y-6">
+      <input type="hidden" name="editorType" value="gallery-structured" />
+
+      <Fieldset legend="Hero">
+        <div className="grid gap-4">
+          <TextField
+            label="Heading"
+            name="hero.heading"
+            defaultValue={asString(hero.heading)}
+          />
+          <TextAreaField
+            label="Body"
+            name="hero.body"
+            defaultValue={asString(hero.body)}
+          />
+        </div>
+      </Fieldset>
+
+      <Fieldset legend="Section copy">
+        <div className="grid gap-4">
+          <TextField
+            label="Featured heading"
+            name="gallery.featuredHeading"
+            defaultValue={
+              asString(gallery.featuredHeading) || "Featured Photos"
+            }
+          />
+          <TextField
+            label="CTA heading"
+            name="gallery.ctaHeading"
+            defaultValue={asString(gallery.ctaHeading) || "Share Your Memories"}
+          />
+          <TextAreaField
+            label="CTA body"
+            name="gallery.ctaBody"
+            defaultValue={asString(gallery.ctaBody)}
+          />
+        </div>
+      </Fieldset>
+
+      <Fieldset
+        legend={`Photos (${items.length})`}
+        actions={
+          <button
+            type="button"
+            onClick={() => setItems((current) => [...current, blankItem()])}
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <PlusIcon /> Add photo
+          </button>
+        }
+      >
+        <div className="space-y-4">
+          {items.length === 0 ? (
+            <EmptyState
+              label="No photos yet"
+              hint="Click Add photo to upload your first image."
+            />
+          ) : null}
+          {items.map((item, index) => (
+            <PhotoRow
+              key={item.id}
+              item={item}
+              index={index}
+              onChange={(patch) => updateItem(item.id, patch)}
+              onRemove={() =>
+                setItems((current) => current.filter((i) => i.id !== item.id))
+              }
+            />
+          ))}
+        </div>
+      </Fieldset>
+    </div>
+  );
+}
+
+function PhotoRow({
+  item,
+  index,
+  onChange,
+  onRemove,
+}: {
+  item: GalleryItem;
+  index: number;
+  onChange: (patch: Partial<GalleryItem>) => void;
+  onRemove: () => void;
+}) {
+  const fieldName = (field: string) => `gallery.items.${index}.${field}`;
+  const headingTitle = item.title?.trim() || `Photo ${index + 1}`;
+  const isFeatured = item.featured === "yes";
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+      <input type="hidden" name={fieldName("id")} value={item.id} />
+      <input
+        type="hidden"
+        name={fieldName("featured")}
+        value={isFeatured ? "yes" : ""}
+      />
+
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="truncate text-sm font-semibold text-slate-900">
+            {headingTitle}
+          </p>
+          {isFeatured ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+              <StarIcon /> Featured
+            </span>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${headingTitle}`}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-transparent px-2 py-1 text-xs font-medium text-rose-600 hover:border-rose-200 hover:bg-rose-50"
+        >
+          <TrashIcon /> Remove
+        </button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-[160px_1fr]">
+        <div className="flex flex-col gap-2">
+          <ImagePreview src={item.image} />
+          <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700">
+            <input
+              type="checkbox"
+              checked={isFeatured}
+              onChange={(e) =>
+                onChange({ featured: e.target.checked ? "yes" : "" })
+              }
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Featured photo
+          </label>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <TextField
+            label="Title"
+            name={fieldName("title")}
+            value={item.title}
+            onChange={(value) => onChange({ title: value })}
+          />
+          <SelectField
+            label="Category"
+            name={fieldName("category")}
+            value={item.category}
+            options={CATEGORY_OPTIONS}
+            onChange={(value) => onChange({ category: value })}
+          />
+          <TextAreaField
+            label="Description"
+            name={fieldName("description")}
+            value={item.description}
+            onChange={(value) => onChange({ description: value })}
+            rows={2}
+            className="md:col-span-2"
+          />
+          <TextField
+            label="Image URL"
+            name={fieldName("image")}
+            value={item.image}
+            onChange={(value) => onChange({ image: value })}
+            placeholder="https://…"
+            className="md:col-span-2"
+          />
+          <TextField
+            label="Date"
+            name={fieldName("date")}
+            value={item.date}
+            placeholder="e.g. June 2024"
+            onChange={(value) => onChange({ date: value })}
+          />
+          <TextField
+            label="Location"
+            name={fieldName("location")}
+            value={item.location}
+            onChange={(value) => onChange({ location: value })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImagePreview({ src }: { src: string }) {
+  const isUrl = /^https?:\/\//i.test(src.trim());
+  return (
+    <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border border-dashed border-slate-300 bg-white">
+      {isUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          className="h-full w-full object-cover"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = "none";
+          }}
+        />
+      ) : (
+        <span className="px-2 text-center text-[11px] text-slate-400">
+          Image preview
+        </span>
+      )}
+    </div>
+  );
+}
+
+function Fieldset({
+  legend,
+  actions,
+  children,
+}: {
+  legend: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <fieldset className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <legend className="px-1 text-sm font-semibold text-slate-900">
+          {legend}
+        </legend>
+        {actions}
+      </div>
+      {children}
+    </fieldset>
+  );
+}
+
+function EmptyState({ label, hint }: { label: string; hint: string }) {
+  return (
+    <div className="rounded-md border border-dashed border-slate-300 bg-white p-4 text-center">
+      <p className="text-sm font-medium text-slate-700">{label}</p>
+      <p className="mt-1 text-xs text-slate-500">{hint}</p>
+    </div>
+  );
+}
+
+type ControlledTextProps = {
+  label: string;
+  name: string;
+  className?: string;
+  placeholder?: string;
+} & (
+  | { value: string; onChange: (value: string) => void; defaultValue?: never }
+  | { defaultValue?: string; value?: never; onChange?: never }
+);
+
+function TextField(props: ControlledTextProps) {
+  const { label, name, className, placeholder } = props;
+  return (
+    <label
+      className={`flex flex-col gap-1 text-sm font-medium text-slate-700 ${className ?? ""}`}
+    >
+      {label}
+      <input
+        name={name}
+        placeholder={placeholder}
+        {...("value" in props && props.value !== undefined
+          ? {
+              value: props.value,
+              onChange: (e) => props.onChange?.(e.target.value),
+            }
+          : { defaultValue: props.defaultValue })}
+        className="rounded-md border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+      />
+    </label>
+  );
+}
+
+function TextAreaField(props: ControlledTextProps & { rows?: number }) {
+  const { label, name, className, placeholder, rows = 3 } = props;
+  return (
+    <label
+      className={`flex flex-col gap-1 text-sm font-medium text-slate-700 ${className ?? ""}`}
+    >
+      {label}
+      <textarea
+        name={name}
+        placeholder={placeholder}
+        rows={rows}
+        {...("value" in props && props.value !== undefined
+          ? {
+              value: props.value,
+              onChange: (e) => props.onChange?.(e.target.value),
+            }
+          : { defaultValue: props.defaultValue })}
+        className="rounded-md border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+      />
+    </label>
+  );
+}
+
+function SelectField({
+  label,
+  name,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+      {label}
+      <select
+        name={name}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-md border border-slate-300 bg-white px-3 py-2 font-normal capitalize text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+      >
+        {options.map((option) => (
+          <option key={option} value={option} className="capitalize">
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M8 3v10M3 8h10" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 4h10" />
+      <path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" />
+      <path d="M4 4l1 9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l1-9" />
+    </svg>
+  );
+}
+
+function StarIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 16 16"
+      className="h-3 w-3"
+      fill="currentColor"
+    >
+      <path d="M8 1.5l1.95 4 4.4.65-3.18 3.1.75 4.38L8 11.55 4.08 13.6l.75-4.38L1.65 6.15l4.4-.65L8 1.5z" />
+    </svg>
+  );
+}
