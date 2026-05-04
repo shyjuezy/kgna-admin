@@ -3,7 +3,17 @@ import { DEFAULT_ABOUT_CONTENT, type CmsPageContent } from "@/lib/content";
 import { getEditablePage } from "@/lib/repository";
 import { EventsStructuredEditor } from "@/components/admin/EventsStructuredEditor";
 import { GalleryStructuredEditor } from "@/components/admin/GalleryStructuredEditor";
+import { ContactStructuredEditor } from "@/components/admin/ContactStructuredEditor";
 import { EditorFormShell } from "@/components/admin/EditorFormShell";
+import { ImageUrlField } from "@/components/admin/ImageUrlField";
+import { TextField, TextAreaField } from "@/components/admin/Fields";
+
+function isImageFieldName(name: string): boolean {
+  const leaf = name.split(".").pop()?.toLowerCase() ?? "";
+  return /^(image|imageurl|imageurls|photo|photourl|thumbnail|thumb|cover|coverimage|avatar)$/.test(
+    leaf,
+  );
+}
 
 type SectionProps = Record<string, unknown>;
 
@@ -28,58 +38,20 @@ function getAboutContent(content: CmsPageContent) {
   return DEFAULT_ABOUT_CONTENT;
 }
 
-function TextField({
-  label,
-  name,
-  value,
-}: {
-  label: string;
-  name: string;
-  value: string;
-}) {
-  return (
-    <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
-      {label}
-      <input
-        name={name}
-        defaultValue={value}
-        className="rounded border border-slate-300 px-3 py-2 font-normal text-slate-900"
-      />
-    </label>
-  );
-}
-
-function TextAreaField({
-  label,
-  name,
-  value,
-  rows = 3,
-}: {
-  label: string;
-  name: string;
-  value: string;
-  rows?: number;
-}) {
-  return (
-    <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
-      {label}
-      <textarea
-        name={name}
-        defaultValue={value}
-        rows={rows}
-        className="rounded border border-slate-300 px-3 py-2 font-normal text-slate-900"
-      />
-    </label>
-  );
-}
-
 function fieldLabel(value: string) {
   return value
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (char) => char.toUpperCase());
 }
 
-function GenericStructuredEditor({ content }: { content: CmsPageContent }) {
+function GenericStructuredEditor({
+  content,
+  slug,
+}: {
+  content: CmsPageContent;
+  slug: string;
+}) {
+  const folder = `kgna/${slug}`;
   return (
     <div className="space-y-6">
       <input type="hidden" name="editorType" value="generic-structured" />
@@ -110,24 +82,54 @@ function GenericStructuredEditor({ content }: { content: CmsPageContent }) {
                         className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-2"
                       >
                         {Object.entries(item as SectionProps).map(
-                          ([itemKey, itemValue]) => (
-                            <TextAreaField
-                              key={itemKey}
-                              label={fieldLabel(itemKey)}
-                              name={`section.${sectionIndex}.array.${key}.${itemIndex}.${itemKey}`}
-                              value={asString(itemValue)}
-                              rows={
-                                itemKey.toLowerCase().includes("description") ||
-                                itemKey.toLowerCase().includes("body")
-                                  ? 3
-                                  : 1
-                              }
-                            />
-                          ),
+                          ([itemKey, itemValue]) => {
+                            const fieldName = `section.${sectionIndex}.array.${key}.${itemIndex}.${itemKey}`;
+                            if (isImageFieldName(itemKey)) {
+                              return (
+                                <ImageUrlField
+                                  key={itemKey}
+                                  label={fieldLabel(itemKey)}
+                                  name={fieldName}
+                                  defaultValue={asString(itemValue)}
+                                  folder={folder}
+                                  className="md:col-span-2"
+                                />
+                              );
+                            }
+                            return (
+                              <TextAreaField
+                                key={itemKey}
+                                label={fieldLabel(itemKey)}
+                                name={fieldName}
+                                defaultValue={asString(itemValue)}
+                                rows={
+                                  itemKey
+                                    .toLowerCase()
+                                    .includes("description") ||
+                                  itemKey.toLowerCase().includes("body")
+                                    ? 3
+                                    : 1
+                                }
+                              />
+                            );
+                          },
                         )}
                       </div>
                     ))}
                   </div>
+                );
+              }
+
+              const fieldName = `section.${sectionIndex}.prop.${key}`;
+              if (isImageFieldName(key)) {
+                return (
+                  <ImageUrlField
+                    key={key}
+                    label={fieldLabel(key)}
+                    name={fieldName}
+                    defaultValue={asString(value)}
+                    folder={folder}
+                  />
                 );
               }
 
@@ -140,16 +142,16 @@ function GenericStructuredEditor({ content }: { content: CmsPageContent }) {
                 <TextAreaField
                   key={key}
                   label={fieldLabel(key)}
-                  name={`section.${sectionIndex}.prop.${key}`}
-                  value={asString(value)}
+                  name={fieldName}
+                  defaultValue={asString(value)}
                   rows={3}
                 />
               ) : (
                 <TextField
                   key={key}
                   label={fieldLabel(key)}
-                  name={`section.${sectionIndex}.prop.${key}`}
-                  value={asString(value)}
+                  name={fieldName}
+                  defaultValue={asString(value)}
                 />
               );
             })}
@@ -184,12 +186,12 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
           <TextField
             label="Heading"
             name="hero.heading"
-            value={asString(hero.heading)}
+            defaultValue={asString(hero.heading)}
           />
           <TextAreaField
             label="Body"
             name="hero.body"
-            value={asString(hero.body)}
+            defaultValue={asString(hero.body)}
           />
         </div>
       </fieldset>
@@ -202,23 +204,23 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
           <TextField
             label="Mission title"
             name="mission.title"
-            value={asString(missionVision.missionTitle)}
+            defaultValue={asString(missionVision.missionTitle)}
           />
           <TextField
             label="Vision title"
             name="vision.title"
-            value={asString(missionVision.visionTitle)}
+            defaultValue={asString(missionVision.visionTitle)}
           />
           <TextAreaField
             label="Mission body"
             name="mission.body"
-            value={asString(missionVision.missionBody)}
+            defaultValue={asString(missionVision.missionBody)}
             rows={5}
           />
           <TextAreaField
             label="Vision body"
             name="vision.body"
-            value={asString(missionVision.visionBody)}
+            defaultValue={asString(missionVision.visionBody)}
             rows={5}
           />
         </div>
@@ -232,7 +234,7 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
           <TextField
             label="Section heading"
             name="values.heading"
-            value={asString(values.heading)}
+            defaultValue={asString(values.heading)}
           />
           {valueItems.map((item, index) => (
             <div
@@ -242,12 +244,12 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
               <TextField
                 label={`Value ${index + 1} title`}
                 name={`values.${index}.title`}
-                value={asString(item.title)}
+                defaultValue={asString(item.title)}
               />
               <TextAreaField
                 label="Description"
                 name={`values.${index}.description`}
-                value={asString(item.description)}
+                defaultValue={asString(item.description)}
               />
             </div>
           ))}
@@ -262,7 +264,7 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
           <TextField
             label="Section heading"
             name="journey.heading"
-            value={asString(journey.heading)}
+            defaultValue={asString(journey.heading)}
           />
           {journeyItems.map((item, index) => (
             <div
@@ -272,18 +274,18 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
               <TextField
                 label="Year"
                 name={`journey.${index}.year`}
-                value={asString(item.year)}
+                defaultValue={asString(item.year)}
               />
               <div className="grid gap-3">
                 <TextField
                   label="Title"
                   name={`journey.${index}.title`}
-                  value={asString(item.title)}
+                  defaultValue={asString(item.title)}
                 />
                 <TextAreaField
                   label="Description"
                   name={`journey.${index}.description`}
-                  value={asString(item.description)}
+                  defaultValue={asString(item.description)}
                 />
               </div>
             </div>
@@ -299,12 +301,12 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
           <TextField
             label="Section heading"
             name="leadership.heading"
-            value={asString(leadership.heading)}
+            defaultValue={asString(leadership.heading)}
           />
           <TextAreaField
             label="Section body"
             name="leadership.body"
-            value={asString(leadership.body)}
+            defaultValue={asString(leadership.body)}
           />
           {members.map((member, index) => (
             <div
@@ -314,22 +316,23 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
               <TextField
                 label={`Member ${index + 1} name`}
                 name={`members.${index}.name`}
-                value={asString(member.name)}
+                defaultValue={asString(member.name)}
               />
               <TextField
                 label="Role"
                 name={`members.${index}.role`}
-                value={asString(member.role)}
+                defaultValue={asString(member.role)}
               />
               <TextAreaField
                 label="Bio"
                 name={`members.${index}.bio`}
-                value={asString(member.bio)}
+                defaultValue={asString(member.bio)}
               />
-              <TextField
+              <ImageUrlField
                 label="Image URL"
                 name={`members.${index}.imageUrl`}
-                value={asString(member.imageUrl)}
+                defaultValue={asString(member.imageUrl)}
+                folder="kgna/leadership"
               />
             </div>
           ))}
@@ -344,32 +347,32 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
           <TextField
             label="Heading"
             name="cta.heading"
-            value={asString(cta.heading)}
+            defaultValue={asString(cta.heading)}
           />
           <TextAreaField
             label="Body"
             name="cta.body"
-            value={asString(cta.body)}
+            defaultValue={asString(cta.body)}
           />
           <TextField
             label="Primary button label"
             name="cta.primaryLabel"
-            value={asString(cta.primaryLabel)}
+            defaultValue={asString(cta.primaryLabel)}
           />
           <TextField
             label="Primary button link"
             name="cta.primaryHref"
-            value={asString(cta.primaryHref)}
+            defaultValue={asString(cta.primaryHref)}
           />
           <TextField
             label="Secondary button label"
             name="cta.secondaryLabel"
-            value={asString(cta.secondaryLabel)}
+            defaultValue={asString(cta.secondaryLabel)}
           />
           <TextField
             label="Secondary button link"
             name="cta.secondaryHref"
-            value={asString(cta.secondaryHref)}
+            defaultValue={asString(cta.secondaryHref)}
           />
         </div>
       </fieldset>
@@ -545,8 +548,13 @@ export default async function EditPage({
             <EventsStructuredEditor content={page.draftContent} />
           ) : page.slug === "gallery" ? (
             <GalleryStructuredEditor content={page.draftContent} />
+          ) : page.slug === "contact" ? (
+            <ContactStructuredEditor content={page.draftContent} />
           ) : page.draftContent.sections.length > 0 ? (
-            <GenericStructuredEditor content={page.draftContent} />
+            <GenericStructuredEditor
+              content={page.draftContent}
+              slug={page.slug}
+            />
           ) : (
             <div className="flex flex-col gap-1">
               <label
