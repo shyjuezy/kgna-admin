@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cmsPageContentSchema, type CmsPageContent } from "@/lib/content";
 import { getAdminAuthState } from "@/lib/auth";
 import { getEditablePage, upsertDraftPage } from "@/lib/repository";
+import { buildGenericContent, formListItems } from "@/lib/generic-form";
 
 export const dynamic = "force-dynamic";
 
@@ -95,10 +96,13 @@ function buildAboutContent(formData: FormData): CmsPageContent {
         props: {
           heading: formValue(formData, "leadership.heading"),
           body: formValue(formData, "leadership.body"),
-          members: formItems(formData, "members", 6, [
-            "name",
+          structure: formValue(formData, "leadership.structure"),
+          // Variable-length: tiles can be added past the old 6-row cap, and
+          // removing them all saves [] so the website renders no tiles.
+          members: formListItems(formData, "members", [
             "role",
             "bio",
+            "name",
             "imageUrl",
           ]),
         },
@@ -305,62 +309,6 @@ function buildGalleryContent(formData: FormData): CmsPageContent {
         },
       },
     ],
-  };
-}
-
-function buildGenericContent(formData: FormData): CmsPageContent {
-  const sections: CmsPageContent["sections"] = [];
-
-  for (let sectionIndex = 0; ; sectionIndex += 1) {
-    const type = formValue(formData, `section.${sectionIndex}.type`);
-    if (!type) {
-      break;
-    }
-
-    const props: Record<string, unknown> = {};
-    const propPrefix = `section.${sectionIndex}.prop.`;
-    const arrayPrefix = `section.${sectionIndex}.array.`;
-    const arrays = new Map<string, Array<Record<string, string>>>();
-
-    for (const [key, value] of formData.entries()) {
-      if (typeof value !== "string") {
-        continue;
-      }
-
-      if (key.startsWith(propPrefix)) {
-        props[key.slice(propPrefix.length)] = value.trim();
-      }
-
-      if (key.startsWith(arrayPrefix)) {
-        const rest = key.slice(arrayPrefix.length);
-        const [arrayName, rawIndex, fieldName] = rest.split(".");
-        const itemIndex = Number(rawIndex);
-
-        if (!arrayName || !fieldName || Number.isNaN(itemIndex)) {
-          continue;
-        }
-
-        const current = arrays.get(arrayName) ?? [];
-        current[itemIndex] = {
-          ...(current[itemIndex] ?? {}),
-          [fieldName]: value.trim(),
-        };
-        arrays.set(arrayName, current);
-      }
-    }
-
-    for (const [arrayName, items] of arrays.entries()) {
-      props[arrayName] = items.filter((item) =>
-        Object.values(item).some(Boolean),
-      );
-    }
-
-    sections.push({ type, props });
-  }
-
-  return {
-    title: formValue(formData, "title") || "Untitled",
-    sections,
   };
 }
 
