@@ -17,9 +17,19 @@ export function useMarkDirty() {
 
 export function EditorFormShell({
   action,
+  publish,
   children,
 }: {
   action: string;
+  /**
+   * Lets the sticky bar surface Publish once there is a saved-but-unpublished
+   * draft. Without it the only Publish control sits in the page header, which
+   * scrolls out of view on long pages and looks absent when disabled.
+   */
+  publish?: {
+    action: string;
+    hasUnpublishedChanges: boolean;
+  };
   children: React.ReactNode;
 }) {
   const [dirty, setDirty] = useState(false);
@@ -43,6 +53,11 @@ export function EditorFormShell({
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty, submitting]);
+
+  // Show the bar while editing, and keep it up afterwards whenever there is a
+  // saved draft still waiting to be published.
+  const canPublish = Boolean(publish?.hasUnpublishedChanges) && !dirty;
+  const barVisible = dirty || canPublish;
 
   const handleDiscard = () => {
     isDiscardingRef.current = true;
@@ -72,13 +87,30 @@ export function EditorFormShell({
       <div
         className={
           "pointer-events-none fixed inset-x-0 bottom-0 z-40 transition-transform duration-200 " +
-          (dirty ? "translate-y-0" : "translate-y-full")
+          (barVisible ? "translate-y-0" : "translate-y-full")
         }
-        aria-hidden={!dirty}
+        aria-hidden={!barVisible}
       >
         <div className="pointer-events-auto border-t border-slate-200 bg-white/95 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.12)] backdrop-blur">
           <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-3 sm:px-10">
-            {confirmingDiscard ? (
+            {canPublish && publish ? (
+              <>
+                <div className="flex min-w-0 items-center gap-2 text-sm text-slate-700">
+                  <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  <span className="truncate font-medium">
+                    Draft saved — not published yet
+                  </span>
+                </div>
+                <form action={publish.action} method="post">
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+                  >
+                    <CheckIcon /> Publish to live site
+                  </button>
+                </form>
+              </>
+            ) : confirmingDiscard ? (
               <>
                 <div className="flex min-w-0 items-center gap-2 text-sm text-slate-700">
                   <span className="inline-flex h-2 w-2 rounded-full bg-rose-500" />
@@ -144,6 +176,23 @@ export function EditorFormShell({
         </div>
       </div>
     </DirtyContext.Provider>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 8l3 3 7-7" />
+    </svg>
   );
 }
 

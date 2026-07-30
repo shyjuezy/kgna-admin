@@ -7,13 +7,8 @@ import { ContactStructuredEditor } from "@/components/admin/ContactStructuredEdi
 import { EditorFormShell } from "@/components/admin/EditorFormShell";
 import { ImageUrlField } from "@/components/admin/ImageUrlField";
 import { TextField, TextAreaField } from "@/components/admin/Fields";
-
-function isImageFieldName(name: string): boolean {
-  const leaf = name.split(".").pop()?.toLowerCase() ?? "";
-  return /^(image|imageurl|imageurls|photo|photourl|thumbnail|thumb|cover|coverimage|avatar)$/.test(
-    leaf,
-  );
-}
+import { RepeatableItems } from "@/components/admin/RepeatableItems";
+import { fieldLabel, isImageFieldName, orderFieldKeys } from "@/lib/field-names";
 
 type SectionProps = Record<string, unknown>;
 
@@ -38,10 +33,28 @@ function getAboutContent(content: CmsPageContent) {
   return DEFAULT_ABOUT_CONTENT;
 }
 
-function fieldLabel(value: string) {
-  return value
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (char) => char.toUpperCase());
+/**
+ * Field keys offered when an array prop has no rows left to infer them from.
+ * Without this, emptying a list would strand it with no way to add a row back.
+ */
+const FALLBACK_ITEM_KEYS: Record<string, string[]> = {
+  stats: ["label", "value"],
+  pillars: ["title", "description"],
+  items: ["title", "description"],
+  members: ["name", "role"],
+};
+
+function itemFieldKeys(arrayName: string, items: SectionProps[]): string[] {
+  const keys = new Set<string>();
+  for (const item of items) {
+    for (const key of Object.keys(item)) {
+      keys.add(key);
+    }
+  }
+  if (keys.size > 0) {
+    return orderFieldKeys([...keys]);
+  }
+  return FALLBACK_ITEM_KEYS[arrayName] ?? ["title", "description"];
 }
 
 function GenericStructuredEditor({
@@ -71,52 +84,25 @@ function GenericStructuredEditor({
           <div className="mt-3 grid gap-4">
             {Object.entries(section.props).map(([key, value]) => {
               if (Array.isArray(value)) {
+                const items = asRecordArray(value);
+                const fieldKeys = itemFieldKeys(key, items);
                 return (
-                  <div key={key} className="space-y-3">
-                    <p className="text-sm font-semibold text-slate-700">
-                      {fieldLabel(key)}
-                    </p>
-                    {value.map((item, itemIndex) => (
-                      <div
-                        key={`${key}-${itemIndex}`}
-                        className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-2"
-                      >
-                        {Object.entries(item as SectionProps).map(
-                          ([itemKey, itemValue]) => {
-                            const fieldName = `section.${sectionIndex}.array.${key}.${itemIndex}.${itemKey}`;
-                            if (isImageFieldName(itemKey)) {
-                              return (
-                                <ImageUrlField
-                                  key={itemKey}
-                                  label={fieldLabel(itemKey)}
-                                  name={fieldName}
-                                  defaultValue={asString(itemValue)}
-                                  folder={folder}
-                                  className="md:col-span-2"
-                                />
-                              );
-                            }
-                            return (
-                              <TextAreaField
-                                key={itemKey}
-                                label={fieldLabel(itemKey)}
-                                name={fieldName}
-                                defaultValue={asString(itemValue)}
-                                rows={
-                                  itemKey
-                                    .toLowerCase()
-                                    .includes("description") ||
-                                  itemKey.toLowerCase().includes("body")
-                                    ? 3
-                                    : 1
-                                }
-                              />
-                            );
-                          },
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                  <RepeatableItems
+                    key={key}
+                    namePrefix={`section.${sectionIndex}.array.${key}`}
+                    declareName={`section.${sectionIndex}.arrayNames`}
+                    declareValue={key}
+                    itemLabel={fieldLabel(key)}
+                    fieldKeys={fieldKeys}
+                    initialItems={items.map((item) => {
+                      const row: Record<string, string> = {};
+                      for (const fieldKey of fieldKeys) {
+                        row[fieldKey] = asString(item[fieldKey]);
+                      }
+                      return row;
+                    })}
+                    folder={folder}
+                  />
                 );
               }
 
@@ -308,34 +294,38 @@ function AboutStructuredEditor({ content }: { content: CmsPageContent }) {
             name="leadership.body"
             defaultValue={asString(leadership.body)}
           />
-          {members.map((member, index) => (
-            <div
-              key={index}
-              className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-2"
-            >
-              <TextField
-                label={`Member ${index + 1} name`}
-                name={`members.${index}.name`}
-                defaultValue={asString(member.name)}
-              />
-              <TextField
-                label="Role"
-                name={`members.${index}.role`}
-                defaultValue={asString(member.role)}
-              />
-              <TextAreaField
-                label="Bio"
-                name={`members.${index}.bio`}
-                defaultValue={asString(member.bio)}
-              />
-              <ImageUrlField
-                label="Image URL"
-                name={`members.${index}.imageUrl`}
-                defaultValue={asString(member.imageUrl)}
-                folder="kgna/leadership"
-              />
-            </div>
-          ))}
+          <TextAreaField
+            label="Board structure statement"
+            name="leadership.structure"
+            defaultValue={asString(leadership.structure)}
+            rows={4}
+            placeholder="How the board is composed, elected, and held accountable. Shown above the tiles. Leave empty to hide."
+          />
+          <p className="text-xs text-slate-500">
+            Tiles may be left generic: fill in Role and Description and leave
+            Name and Image empty to show a position without identifying anyone.
+            Remove every tile to hide the grid entirely.
+          </p>
+          {/* No declareName needed: buildAboutContent always writes a members
+              key, so an emptied list already saves as []. */}
+          <RepeatableItems
+            namePrefix="members"
+            itemLabel="Positions"
+            fieldKeys={["role", "bio", "name", "imageUrl"]}
+            fieldLabels={{
+              role: "Position / role",
+              bio: "Description of the position",
+              name: "Name (optional - leave empty to stay generic)",
+              imageUrl: "Photo (optional)",
+            }}
+            initialItems={members.map((member) => ({
+              role: asString(member.role),
+              bio: asString(member.bio),
+              name: asString(member.name),
+              imageUrl: asString(member.imageUrl),
+            }))}
+            folder="kgna/leadership"
+          />
         </div>
       </fieldset>
 
@@ -488,13 +478,13 @@ export default async function EditPage({
             title={
               hasUnpublishedChanges
                 ? "Publish saved changes to the live site"
-                : "No changes to publish"
+                : "Live site matches this draft - edit and save to enable publishing"
             }
             className={
               "inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition " +
               (hasUnpublishedChanges
                 ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                : "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400")
+                : "cursor-not-allowed border border-emerald-200 bg-white text-emerald-700/70")
             }
           >
             <svg
@@ -526,7 +516,13 @@ export default async function EditPage({
       )}
 
       <div className="mt-6">
-        <EditorFormShell action={`/api/admin/pages/${page.slug}`}>
+        <EditorFormShell
+          action={`/api/admin/pages/${page.slug}`}
+          publish={{
+            action: `/api/admin/pages/${page.slug}/publish`,
+            hasUnpublishedChanges,
+          }}
+        >
           <input type="hidden" name="slug" value={page.slug} />
           <div className="flex flex-col gap-1">
             <label
