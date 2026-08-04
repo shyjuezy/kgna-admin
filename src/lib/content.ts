@@ -576,6 +576,24 @@ export const DEFAULT_DONATE_CONTENT = {
       },
     },
     {
+      type: "directGiving",
+      props: {
+        heading: "Direct giving",
+        // Taken from the Zelle popup on the current kgna.us site.
+        zelleHandle: "treasurer@kgna.us",
+        zelleNote:
+          "Send from your banking app to the address above, and include your name so we can match the gift to you.",
+        zelleReceiptNote:
+          "Zelle gifts do not generate an automatic receipt - email us and we will send an acknowledgement for your records.",
+        // Left blank on purpose: the merchant target on the old Wix site is
+        // held in its component config and is not published anywhere we can
+        // read. The website hides the PayPal block until this is filled in,
+        // so an unset value shows nothing rather than a dead donate button.
+        paypalUrl: "",
+        paypalLabel: "Donate with PayPal",
+      },
+    },
+    {
       type: "otherWays",
       props: {
         heading: "Other Ways to Give",
