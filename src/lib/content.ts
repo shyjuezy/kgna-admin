@@ -338,8 +338,6 @@ export const DEFAULT_CONTACT_CONTENT = {
       props: {
         heading: "Contact Information",
         email: "info@kgna.us",
-        addressLine1: "123 Main Street",
-        addressLine2: "New York, NY 10001",
       },
     },
     {
@@ -882,6 +880,143 @@ export const DEFAULT_NEWS_CONTENT = {
   ],
 } satisfies CmsPageContent;
 
+// The patron levels themselves are not authored here - they are the annual
+// rows from donate > Tiers, so the two can never drift apart.
+export const DEFAULT_PATRON_CONTENT = {
+  title: "Patron",
+  sections: [
+    {
+      type: "hero",
+      props: {
+        heading: "Become a Patron",
+        body: "Patrons make an annual commitment to KGNA. It is the steadiest kind of support we receive, and the reason we can plan a full year of cultural programming.",
+      },
+    },
+    {
+      type: "benefits",
+      props: {
+        heading: "Why patrons matter",
+        items: [
+          {
+            title: "Predictable support",
+            body: "An annual commitment lets us plan festivals, classes, and youth programs a year ahead instead of month to month.",
+          },
+          {
+            title: "Community reach",
+            body: "Patron gifts fund the gatherings that connect Kashmiri families across North America, including those who could not otherwise attend.",
+          },
+          {
+            title: "Recognition, if you want it",
+            body: "Patrons can be acknowledged in our annual programme, or stay anonymous - it is entirely your choice.",
+          },
+        ],
+      },
+    },
+    {
+      type: "levels",
+      props: {
+        heading: "Patron levels",
+        body: "Every level is an annual gift. Choose the one that fits, or enter your own amount on the donate form.",
+      },
+    },
+    {
+      type: "cta",
+      props: {
+        heading: "Ready to become a patron?",
+        body: "The donate form opens on the annual option. Contributions are tax-deductible to the extent allowed by law.",
+        primaryLabel: "Become a patron",
+        secondaryLabel: "Talk to us first",
+      },
+    },
+  ],
+} satisfies CmsPageContent;
+
+// Community directory. Every section shares one row shape so the site can use a
+// single card: name, blurb, url, imageUrl, location, plus one badge field that
+// differs per section (tier / category / work). Rows are seeded with a
+// placeholder because the admin derives its input fields from existing rows -
+// an empty items array would render no fields to fill in.
+export const DEFAULT_DIRECTORY_CONTENT = {
+  title: "Directory",
+  sections: [
+    {
+      type: "hero",
+      props: {
+        heading: "Community Directory",
+        body: "Sponsors, vendors, authors, and local businesses connected to the Kashmiri community across North America.",
+      },
+    },
+    {
+      type: "sponsors",
+      props: {
+        heading: "Our sponsors",
+        body: "Organizations whose support makes our programming possible.",
+        items: [
+          {
+            name: "Example Sponsor",
+            tier: "Gold",
+            blurb: "Replace with a short, factual description of the sponsor.",
+            url: "https://example.com",
+            imageUrl: "",
+            location: "City, ST",
+          },
+        ],
+      },
+    },
+    {
+      type: "vendors",
+      props: {
+        heading: "Vendors",
+        body: "Caterers, musicians, photographers, and other vendors our community works with.",
+        items: [
+          {
+            name: "Example Vendor",
+            category: "Catering",
+            blurb: "Replace with a short description of the service offered.",
+            url: "https://example.com",
+            imageUrl: "",
+            location: "City, ST",
+          },
+        ],
+      },
+    },
+    {
+      type: "authors",
+      props: {
+        heading: "Authors",
+        body: "Writers from the Kashmiri community and their published work.",
+        items: [
+          {
+            name: "Example Author",
+            work: "Title of their book",
+            blurb: "Replace with a short description of the author or the work.",
+            url: "https://example.com",
+            imageUrl: "",
+            location: "City, ST",
+          },
+        ],
+      },
+    },
+    {
+      type: "businesses",
+      props: {
+        heading: "Local businesses",
+        body: "Businesses run by members of our community.",
+        items: [
+          {
+            name: "Example Business",
+            category: "Retail",
+            blurb: "Replace with a short, factual description of the business.",
+            url: "https://example.com",
+            imageUrl: "",
+            location: "City, ST",
+          },
+        ],
+      },
+    },
+  ],
+} satisfies CmsPageContent;
+
 export const DEFAULT_PAGES = [
   {
     slug: "home",
@@ -922,6 +1057,16 @@ export const DEFAULT_PAGES = [
     slug: "news",
     title: "News",
     draftContent: DEFAULT_NEWS_CONTENT,
+  },
+  {
+    slug: "patron",
+    title: "Patron",
+    draftContent: DEFAULT_PATRON_CONTENT,
+  },
+  {
+    slug: "directory",
+    title: "Directory",
+    draftContent: DEFAULT_DIRECTORY_CONTENT,
   },
 ] as const;
 

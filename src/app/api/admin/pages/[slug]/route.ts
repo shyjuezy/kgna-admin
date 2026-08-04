@@ -243,8 +243,6 @@ function buildContactContent(formData: FormData): CmsPageContent {
         props: {
           heading: formValue(formData, "contactInfo.heading"),
           email: formValue(formData, "contactInfo.email"),
-          addressLine1: formValue(formData, "contactInfo.addressLine1"),
-          addressLine2: formValue(formData, "contactInfo.addressLine2"),
         },
       },
       {
