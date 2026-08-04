@@ -282,16 +282,6 @@ export function ContactStructuredEditor({
             name="contactInfo.email"
             defaultValue={asString(contactInfo.email)}
           />
-          <TextField
-            label="Address line 1"
-            name="contactInfo.addressLine1"
-            defaultValue={asString(contactInfo.addressLine1)}
-          />
-          <TextField
-            label="Address line 2"
-            name="contactInfo.addressLine2"
-            defaultValue={asString(contactInfo.addressLine2)}
-          />
         </div>
       </Fieldset>
 

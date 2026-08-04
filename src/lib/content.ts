@@ -338,8 +338,6 @@ export const DEFAULT_CONTACT_CONTENT = {
       props: {
         heading: "Contact Information",
         email: "info@kgna.us",
-        addressLine1: "123 Main Street",
-        addressLine2: "New York, NY 10001",
       },
     },
     {
