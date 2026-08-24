@@ -32,8 +32,15 @@ export default clerkMiddleware(async (auth, request) => {
     return;
   }
 
+  // auth.protect() answers a signed-out visitor with a 404 in the deployed
+  // environment, so an admin opening the CMS is told the page does not exist.
+  // Redirect to the app's own sign-in page instead, which is what
+  // admin/layout.tsx did before this file existed.
   if (isAdminPage(request)) {
-    await auth.protect();
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.redirect(new URL("/sign-in", request.url));
+    }
   }
 });
 
