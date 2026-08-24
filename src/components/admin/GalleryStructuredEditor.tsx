@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { CmsPageContent } from "@/lib/content";
 import { useMarkDirty } from "@/components/admin/EditorFormShell";
 import { CloudinaryUploadButton } from "@/components/admin/CloudinaryUploadButton";
+import { ImageDropZone } from "@/components/admin/ImageDropZone";
 import {
   TextField,
   TextAreaField,
@@ -136,10 +137,14 @@ export function GalleryStructuredEditor({
     setItems((current) => [...current, item]);
   };
 
-  const updateItem = (id: string, patch: Partial<GalleryItem>) =>
+  const updateItem = (id: string, patch: Partial<GalleryItem>) => {
     setItems((current) =>
       current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
+    // Uploads patch the row without emitting an input event, so the form shell
+    // would never see them. Typing already bubbles; marking twice is harmless.
+    markDirty();
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -370,7 +375,11 @@ function PhotoRow({
             rows={2}
             className="md:col-span-2"
           />
-          <div className="md:col-span-2">
+          <ImageDropZone
+            folder="kgna/gallery"
+            onUploaded={(url) => onChange({ image: url })}
+            className="md:col-span-2"
+          >
             <div className="flex items-end gap-2">
               <TextField
                 label="Image URL"
@@ -386,7 +395,7 @@ function PhotoRow({
                 className="mb-px h-[38px]"
               />
             </div>
-          </div>
+          </ImageDropZone>
           <TextField
             label="Date"
             name={fieldName("date")}

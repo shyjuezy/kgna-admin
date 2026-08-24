@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { CmsPageContent } from "@/lib/content";
 import { useMarkDirty } from "@/components/admin/EditorFormShell";
 import { CloudinaryUploadButton } from "@/components/admin/CloudinaryUploadButton";
+import { ImageDropZone } from "@/components/admin/ImageDropZone";
 import {
   TextField,
   TextAreaField,
@@ -149,14 +150,20 @@ export function EventsStructuredEditor({
     setPast((items) => [...items, item]);
   };
 
-  const updateUpcoming = (id: string, patch: Partial<EventItem>) =>
+  // Uploads patch a row without emitting an input event, so the form shell
+  // would never see them. Typing already bubbles; marking twice is harmless.
+  const updateUpcoming = (id: string, patch: Partial<EventItem>) => {
     setUpcoming((items) =>
       items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
-  const updatePast = (id: string, patch: Partial<EventItem>) =>
+    markDirty();
+  };
+  const updatePast = (id: string, patch: Partial<EventItem>) => {
     setPast((items) =>
       items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
+    markDirty();
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -453,7 +460,11 @@ function EventRow({
           className="md:col-span-2"
           rows={3}
         />
-        <div className={showRegistration ? "" : "md:col-span-2"}>
+        <ImageDropZone
+          folder="kgna/events"
+          onUploaded={(url) => onChange({ imageUrl: url })}
+          className={showRegistration ? "" : "md:col-span-2"}
+        >
           <div className="flex items-end gap-2">
             <TextField
               label="Image URL"
@@ -469,7 +480,7 @@ function EventRow({
               className="mb-px h-[38px]"
             />
           </div>
-        </div>
+        </ImageDropZone>
         {showRegistration ? (
           <TextField
             label="Registration URL"
