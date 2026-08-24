@@ -25,7 +25,7 @@ export default clerkMiddleware(async (auth, request) => {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json(
-        { error: "Unauthorized to access this page." },
+        { error: "Authentication required." },
         { status: 401 },
       );
     }
@@ -38,12 +38,9 @@ export default clerkMiddleware(async (auth, request) => {
 });
 
 export const config = {
-  matcher: [
-    // Skip Next.js internals and static files, unless found in search params.
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes.
-    "/(api|trpc)(.*)",
-    // Always run for Clerk's own frontend API routes.
-    "/__clerk/(.*)",
-  ],
+  // Deliberately narrower than Clerk's suggested catch-all matcher. Running
+  // clerkMiddleware over /api/public/* would put Clerk in front of the only
+  // route the website depends on, so a bad or partial Clerk config would take
+  // the public CMS API down before its handler ever runs.
+  matcher: ["/admin/:path*", "/api/admin/:path*"],
 };
