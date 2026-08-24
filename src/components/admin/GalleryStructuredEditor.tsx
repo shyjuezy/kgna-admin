@@ -41,14 +41,38 @@ type GalleryItem = {
   featured: string;
 };
 
+/**
+ * These are the filters the website's gallery page offers. Anything stored
+ * outside this set is invisible there — it only shows under "All Photos".
+ */
 const CATEGORY_OPTIONS = [
   "events",
   "culture",
-  "people",
-  "nature",
-  "food",
-  "other",
+  "landscape",
+  "community",
+  "heritage",
 ];
+
+/** Earlier option names, mapped to the website's equivalents. */
+const LEGACY_CATEGORIES: Record<string, string> = {
+  nature: "landscape",
+  people: "community",
+};
+
+function normalizeCategory(raw: string) {
+  return LEGACY_CATEGORIES[raw] ?? raw;
+}
+
+/**
+ * Keep a value the list no longer offers selectable rather than dropping it.
+ * A controlled select whose value is absent renders blank and would quietly
+ * rewrite the category on the next save.
+ */
+function categoryOptionsFor(category: string) {
+  return CATEGORY_OPTIONS.includes(category)
+    ? CATEGORY_OPTIONS
+    : [...CATEGORY_OPTIONS, category];
+}
 
 function asString(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
@@ -76,7 +100,7 @@ function toGalleryItem(raw: SectionProps): GalleryItem {
     title: asString(raw.title),
     description: asString(raw.description),
     image: asString(raw.image),
-    category: asString(raw.category) || "events",
+    category: normalizeCategory(asString(raw.category) || "events"),
     date: asString(raw.date),
     location: asString(raw.location),
     featured: asString(raw.featured),
@@ -364,7 +388,7 @@ function PhotoRow({
             label="Category"
             name={fieldName("category")}
             value={item.category}
-            options={CATEGORY_OPTIONS}
+            options={categoryOptionsFor(item.category)}
             onChange={(value) => onChange({ category: value })}
           />
           <TextAreaField
