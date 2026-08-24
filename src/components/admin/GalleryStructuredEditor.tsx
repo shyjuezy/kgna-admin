@@ -137,10 +137,14 @@ export function GalleryStructuredEditor({
     setItems((current) => [...current, item]);
   };
 
-  const updateItem = (id: string, patch: Partial<GalleryItem>) =>
+  const updateItem = (id: string, patch: Partial<GalleryItem>) => {
     setItems((current) =>
       current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
+    // Uploads patch the row without emitting an input event, so the form shell
+    // would never see them. Typing already bubbles; marking twice is harmless.
+    markDirty();
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),

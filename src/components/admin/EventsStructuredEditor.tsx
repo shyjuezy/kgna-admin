@@ -150,14 +150,20 @@ export function EventsStructuredEditor({
     setPast((items) => [...items, item]);
   };
 
-  const updateUpcoming = (id: string, patch: Partial<EventItem>) =>
+  // Uploads patch a row without emitting an input event, so the form shell
+  // would never see them. Typing already bubbles; marking twice is harmless.
+  const updateUpcoming = (id: string, patch: Partial<EventItem>) => {
     setUpcoming((items) =>
       items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
-  const updatePast = (id: string, patch: Partial<EventItem>) =>
+    markDirty();
+  };
+  const updatePast = (id: string, patch: Partial<EventItem>) => {
     setPast((items) =>
       items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
+    markDirty();
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
