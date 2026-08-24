@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { getCloudinaryConfig } from "@/components/admin/cloudinary";
 
 const SCRIPT_SRC = "https://upload-widget.cloudinary.com/global/all.js";
 
@@ -64,13 +65,12 @@ export function CloudinaryUploadButton({
   className?: string;
   label?: string;
 }) {
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  const config = getCloudinaryConfig();
   const widgetRef = useRef<CloudinaryWidget | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!cloudName || !uploadPreset) {
+  if (!config) {
     return (
       <button
         type="button"
@@ -97,8 +97,8 @@ export function CloudinaryUploadButton({
       if (!widgetRef.current) {
         widgetRef.current = window.cloudinary.createUploadWidget(
           {
-            cloudName,
-            uploadPreset,
+            cloudName: config.cloudName,
+            uploadPreset: config.uploadPreset,
             folder,
             sources: ["local", "url", "camera"],
             multiple: false,
