@@ -67,6 +67,59 @@ async function seedDefaults() {
   }
 }
 
+/**
+ * Sections added to DEFAULT_PAGES after a row was first seeded never reach an
+ * editor: seedDefaults() only inserts pages that are missing entirely, and the
+ * admin UI has no "add section" control - GenericStructuredEditor renders a
+ * fieldset per section already present in draftContent. So the donate page's
+ * directGiving block (Zelle handle, PayPal link), added in 666e608, is
+ * invisible and uneditable on any database seeded before that commit.
+ *
+ * Append the defaults a row is missing, at the position they hold in the
+ * defaults, and leave every existing section untouched - this only ever adds.
+ * Removing a section is not something the UI can do, so a type that is absent
+ * is a gap rather than a deliberate deletion.
+ *
+ * publishedContent is deliberately left alone: getPublishedPage() serves
+ * publishedContent ?? draftContent, so a backfilled section reaches the public
+ * site only once someone reviews it and hits Publish.
+ */
+async function backfillMissingSections() {
+  const db = getDb();
+  const rows = await db.select().from(pages).execute();
+
+  for (const row of rows as DbPage[]) {
+    const defaults = DEFAULT_PAGES.find((page) => page.slug === row.slug);
+    if (!defaults) continue;
+
+    let draft: CmsPageContent;
+    try {
+      draft = parseContent(row.draftContent);
+    } catch {
+      // Hand-edited or older content we cannot read: leave it for a human
+      // rather than overwriting it with defaults.
+      continue;
+    }
+
+    const present = new Set(draft.sections.map((section) => section.type));
+    const sections = [...draft.sections];
+    let added = false;
+
+    defaults.draftContent.sections.forEach((section, index) => {
+      if (present.has(section.type)) return;
+      sections.splice(Math.min(index, sections.length), 0, section);
+      added = true;
+    });
+
+    if (!added) continue;
+
+    await db
+      .update(pages)
+      .set({ draftContent: { ...draft, sections } })
+      .where(eq(pages.slug, row.slug));
+  }
+}
+
 function ensureDbAccess() {
   if (!isDatabaseConfigured) {
     throw new Error("DATABASE_URL is not configured");
@@ -77,6 +130,7 @@ export async function listEditablePages(): Promise<CmsPageRecord[]> {
   ensureDbAccess();
   const db = getDb();
   await seedDefaults();
+  await backfillMissingSections();
 
   const rows = await db
     .select()
@@ -91,6 +145,7 @@ export async function getEditablePage(slug: string): Promise<CmsPageRecord | nul
   ensureDbAccess();
   const db = getDb();
   await seedDefaults();
+  await backfillMissingSections();
 
   const rows = await db.select().from(pages).where(and(eq(pages.slug, slug))).limit(1);
   if (rows.length === 0) {
