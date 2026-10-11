@@ -375,7 +375,7 @@ export default async function EditPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ saved?: string; published?: string }>;
+  searchParams: Promise<{ saved?: string; published?: string; refresh?: string }>;
 }) {
   const { slug } = await params;
   const query = await searchParams;
@@ -415,6 +415,7 @@ export default async function EditPage({
       : query.published === "1"
         ? "Draft published."
         : "";
+  const refreshFailed = query.published === "1" && query.refresh === "failed";
 
   const isPublished = page.status === "published";
   const hasUnpublishedChanges =
@@ -512,6 +513,14 @@ export default async function EditPage({
         <p className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
           <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
           {success}
+        </p>
+      )}
+
+      {refreshFailed && (
+        <p className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-800">
+          <span className="mt-1 inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+          The website could not be refreshed, so this change may take up to
+          24 hours to appear there. Publishing again retries the refresh.
         </p>
       )}
 
